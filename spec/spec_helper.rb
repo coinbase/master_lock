@@ -62,6 +62,6 @@ RSpec.configure do |config|
   config.include RedisTest, redis: true
 
   config.before(:each, redis: true) do
-    redis.flushall
+    clean_redis
   end
 end

@@ -1,6 +1,12 @@
 require 'master_lock/redis_scripts'
 
 module MasterLock
+  # RedisLock implements a mutex in Redis according to the strategy documented
+  # at http://redis.io/commands/SET#patterns. The lock has a string identifier
+  # and when acquired will be registered to an owner, also identified by a
+  # string. Locks have an expiration time, after which they will be released
+  # automatically so that unexpected failures do not result in locks getting
+  # stuck.
   class RedisLock
     DEFAULT_SLEEP_INTERVAL = 0.1
 
