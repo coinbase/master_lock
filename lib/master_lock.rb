@@ -17,33 +17,41 @@ module MasterLock
   class NotStartedError < StandardError; end
   class LockNotAcquiredError < StandardError; end
 
-  DEFAULT_TTL = 60
   DEFAULT_ACQUIRE_TIMEOUT = 5
   DEFAULT_EXTEND_INTERVAL = 15
+  DEFAULT_SLEEP_TIME = 5
+  DEFAULT_TTL = 60
 
   Config = Struct.new(
-    :redis,
-    :ttl,
     :acquire_timeout,
     :extend_interval,
     :hostname,
-    :process_id
+    :process_id,
+    :redis,
+    :sleep_time,
+    :ttl
   )
 
   class << self
-    # Obtain a mutex around a critical section of code. The lock is respected across processes and
-    # instances in the deployment of the project.
+    # Obtain a mutex around a critical section of code. Only one thread on any
+    # machine can execute the given block at a time. Returns the result of the
+    # block.
     #
-    # @option options [ActiveSupport::Duration] :life (60.seconds) the length of time before the
-    #   lock expires
-    # @option options [ActiveSupport::Duration] :acquire (10.seconds) the length of time to wait
+    # @param key [String] the unique identifier for the locked resource
+    # @option options [Fixnum] :ttl (60) the length of time in seconds before
+    #   the lock expires
+    # @option options [Fixnum] :acquire_timeout (5) the length of time to wait
     #   to acquire the lock before timing out
-    # @option options [ActiveSupport::Duration] :extend_interval (10.seconds) the amount of time
-    #   that may pass before extending the lock
-    # @option options [Boolean] :if if this option is falsey, the block will be executed without
-    #   obtaining the lock
-    # @option options [Boolean] :unless if this option is truthy, the block will be executed
-    #   without obtaining the lock
+    # @option options [Fixnum] :extend_interval (15) the amount of time in
+    #   seconds that may pass before extending the lock
+    # @option options [Boolean] :if if this option is falsey, the block will be
+    #   executed without obtaining the lock
+    # @option options [Boolean] :unless if this option is truthy, the block will
+    #   be executed without obtaining the lock
+    # @raise [UnconfiguredError] if a required configuration variable is unset
+    # @raise [NotStartedError] if called before {#start}
+    # @raise [LockNotAcquiredError] if the lock cannot be acquired before the
+    #   timeout
     def synchronize(key, options = {})
       check_configured
       raise NotStartedError unless @registry
@@ -52,7 +60,8 @@ module MasterLock
       acquire_timeout = options[:acquire_timeout] || config.acquire_timeout
       extend_interval = options[:extend_interval] || config.extend_interval
 
-      raise ArgumentError, "ttl must be greater than 0" if ttl <= 0
+      raise ArgumentError, "extend_interval cannot be negative" if extend_interval < 0
+      raise ArgumentError, "ttl must be greater extend_interval" if ttl <= extend_interval
 
       if (options.include?(:if) && !options[:if]) ||
           (options.include?(:unless) && options[:unless])
@@ -75,10 +84,13 @@ module MasterLock
         yield
       ensure
         @registry.unregister(registration)
-        redis_lock.release # TODO: Check result of this
+        lock.release # TODO: Check result of this
       end
     end
 
+    # Starts the background thread to manage and extend currently held locks.
+    # The thread remains alive for the lifetime of the process. This must be
+    # called before any locks may be acquired.
     def start
       @registry = Registry.new
       Thread.new do
@@ -89,18 +101,24 @@ module MasterLock
       end
     end
 
+    # @return [Config] MasterLock configuration settings
     def config
-      if @config.nil?
+      if !defined?(@config)
         @config = Config.new
-        @config.ttl = DEFAULT_TTL
         @config.acquire_timeout = DEFAULT_ACQUIRE_TIMEOUT
         @config.extend_interval = DEFAULT_EXTEND_INTERVAL
         @config.hostname = Socket.gethostname
         @config.process_id = Process.pid
+        @config.sleep_time = DEFAULT_SLEEP_TIME
+        @config.ttl = DEFAULT_TTL
       end
       @config
     end
 
+    # Configure MasterLock using block syntax. Simply yields {#config} to the
+    # block.
+    #
+    # @yield [Config] the configuration
     def configure
       yield config
     end

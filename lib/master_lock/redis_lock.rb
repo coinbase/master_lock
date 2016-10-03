@@ -13,7 +13,7 @@ module MasterLock
     # @return [Redis] the Redis connection used to manage lock
     attr_reader :redis
 
-    # @return [String] the unique identifier for the lock
+    # @return [String] the unique identifier for the locked resource
     attr_reader :key
 
     # @return [String] the identity of the owner acquiring the lock
