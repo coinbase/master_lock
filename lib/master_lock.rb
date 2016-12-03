@@ -19,6 +19,7 @@ module MasterLock
 
   DEFAULT_ACQUIRE_TIMEOUT = 5
   DEFAULT_EXTEND_INTERVAL = 15
+  DEFAULT_KEY_PREFIX = "masterlock".freeze
   DEFAULT_SLEEP_TIME = 5
   DEFAULT_TTL = 60
 
@@ -26,6 +27,7 @@ module MasterLock
     :acquire_timeout,
     :extend_interval,
     :hostname,
+    :key_prefix,
     :process_id,
     :redis,
     :sleep_time,
@@ -70,7 +72,7 @@ module MasterLock
 
       lock = RedisLock.new(
         redis: config.redis,
-        key: key,
+        key: redis_key(key),
         ttl: ttl,
         owner: generate_owner
       )
@@ -108,6 +110,7 @@ module MasterLock
         @config.acquire_timeout = DEFAULT_ACQUIRE_TIMEOUT
         @config.extend_interval = DEFAULT_EXTEND_INTERVAL
         @config.hostname = Socket.gethostname
+        @config.key_prefix = DEFAULT_KEY_PREFIX
         @config.process_id = Process.pid
         @config.sleep_time = DEFAULT_SLEEP_TIME
         @config.ttl = DEFAULT_TTL
@@ -131,6 +134,10 @@ module MasterLock
 
     def generate_owner
       "#{config.hostname}:#{config.process_id}:#{Thread.current.object_id}"
+    end
+
+    def redis_key(key)
+      "#{config.key_prefix}:#{key}"
     end
   end
 end
