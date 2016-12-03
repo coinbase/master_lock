@@ -26,7 +26,7 @@ Or install it yourself as:
 
 ```ruby
 def perform_safe_operation
-  MasterLock.acquire("perform_safe_operation") do
+  MasterLock.synchronize("perform_safe_operation") do
     # Code executes within locked context
   end
 end
