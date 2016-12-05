@@ -54,6 +54,12 @@ RSpec.describe MasterLock::Registry do
       expect { registry.extend_locks }.to change(registry.locks, :size).by(-1)
     end
 
+    it "removes the locks from the registered list if the owning thread dies" do
+      registration.thread = Thread.new {}
+      registration.thread.join
+      expect { registry.extend_locks }.to change(registry.locks, :size).by(-1)
+    end
+
     it "removes the locks from the registered list after it has expired" do
       registration.acquired_at = Time.now - 2
       expect(lock).to receive(:extend).and_return(false)
