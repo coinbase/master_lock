@@ -69,15 +69,21 @@ module MasterLock
     def extend_lock(registration)
       registration.mutex.synchronize do
         time = Time.now
+        lock_key = registration.lock.key
         if !registration.thread.alive?
           registration.released = true
+          MasterLock.logger.info(
+            "Releasing lock #{lock_key} after owning thread terminated"
+          )
         elsif !registration.released &&
             registration.acquired_at + registration.extend_interval < time
+          lock_key = registration.lock.key
           if registration.lock.extend
             registration.acquired_at = time
+            MasterLock.logger.debug("Renewed lease on lock #{lock_key}")
           else
             registration.released = true
-            # TODO: Notify of failure somehow
+            MasterLock.logger.warn("Could not renew lease on lock #{lock_key}")
           end
         end
       end

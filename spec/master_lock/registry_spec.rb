@@ -2,7 +2,7 @@ require 'spec_helper'
 
 RSpec.describe MasterLock::Registry do
   subject(:registry) { described_class.new }
-  let(:lock) { instance_double('MasterLock::RedisLock') }
+  let(:lock) { instance_double('MasterLock::RedisLock', key: 'test') }
 
   describe "#register" do
     it "returns the registered struct" do

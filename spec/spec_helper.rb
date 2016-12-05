@@ -68,3 +68,7 @@ RSpec.configure do |config|
     clean_redis
   end
 end
+
+MasterLock.configure do |config|
+  config.logger.level = :info
+end

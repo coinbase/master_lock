@@ -44,7 +44,7 @@ module MasterLock
     def acquire(timeout:)
       timeout_time = Time.now + timeout
       loop do
-        locked = redis.set(key, owner, nx: true, px: ttl_ms)
+        locked = redis.set(redis_key, owner, nx: true, px: ttl_ms)
         return true if locked
         return false if Time.now >= timeout_time
         sleep(@sleep_interval)
@@ -60,7 +60,7 @@ module MasterLock
       result = eval_script(
         RedisScripts::EXTEND_SCRIPT,
         RedisScripts::EXTEND_SCRIPT_HASH,
-        keys: [key],
+        keys: [redis_key],
         argv: [owner, ttl_ms]
       )
       result != 0
@@ -74,7 +74,7 @@ module MasterLock
       result = eval_script(
         RedisScripts::RELEASE_SCRIPT,
         RedisScripts::RELEASE_SCRIPT_HASH,
-        keys: [key],
+        keys: [redis_key],
         argv: [owner]
       )
       result != 0
@@ -92,6 +92,10 @@ module MasterLock
       rescue Redis::CommandError
         redis.eval(script, keys: keys, argv: argv)
       end
+    end
+
+    def redis_key
+      "#{MasterLock.config.key_prefix}:#{key}"
     end
   end
 end

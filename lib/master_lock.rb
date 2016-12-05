@@ -1,5 +1,6 @@
 require 'master_lock/version'
 
+require 'logger'
 require 'socket'
 
 # MasterLock is a system for interprocess locking. Resources can be locked by a
@@ -27,6 +28,7 @@ module MasterLock
     :acquire_timeout,
     :extend_interval,
     :hostname,
+    :logger,
     :key_prefix,
     :process_id,
     :redis,
@@ -72,7 +74,7 @@ module MasterLock
 
       lock = RedisLock.new(
         redis: config.redis,
-        key: redis_key(key),
+        key: key,
         ttl: ttl,
         owner: generate_owner
       )
@@ -82,11 +84,16 @@ module MasterLock
 
       registration =
         @registry.register(lock, extend_interval)
+      logger.debug("Acquired lock #{key}")
       begin
         yield
       ensure
         @registry.unregister(registration)
-        lock.release # TODO: Check result of this
+        if lock.release
+          logger.debug("Released lock #{key}")
+        else
+          logger.warn("Failed to release lock #{key}")
+        end
       end
     end
 
@@ -103,6 +110,13 @@ module MasterLock
       end
     end
 
+    # Get the configured logger.
+    #
+    # @return [Logger]
+    def logger
+      config.logger
+    end
+
     # @return [Config] MasterLock configuration settings
     def config
       if !defined?(@config)
@@ -110,6 +124,8 @@ module MasterLock
         @config.acquire_timeout = DEFAULT_ACQUIRE_TIMEOUT
         @config.extend_interval = DEFAULT_EXTEND_INTERVAL
         @config.hostname = Socket.gethostname
+        @config.logger = Logger.new(STDOUT)
+        @config.logger.progname = name
         @config.key_prefix = DEFAULT_KEY_PREFIX
         @config.process_id = Process.pid
         @config.sleep_time = DEFAULT_SLEEP_TIME
@@ -134,10 +150,6 @@ module MasterLock
 
     def generate_owner
       "#{config.hostname}:#{config.process_id}:#{Thread.current.object_id}"
-    end
-
-    def redis_key(key)
-      "#{config.key_prefix}:#{key}"
     end
   end
 end
