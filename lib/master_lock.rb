@@ -30,7 +30,6 @@ module MasterLock
     :hostname,
     :logger,
     :key_prefix,
-    :process_id,
     :redis,
     :sleep_time,
     :ttl
@@ -127,7 +126,6 @@ module MasterLock
         @config.logger = Logger.new(STDOUT)
         @config.logger.progname = name
         @config.key_prefix = DEFAULT_KEY_PREFIX
-        @config.process_id = Process.pid
         @config.sleep_time = DEFAULT_SLEEP_TIME
         @config.ttl = DEFAULT_TTL
       end
@@ -149,7 +147,7 @@ module MasterLock
     end
 
     def generate_owner
-      "#{config.hostname}:#{config.process_id}:#{Thread.current.object_id}"
+      "#{config.hostname}:#{Process.pid}:#{Thread.current.object_id}"
     end
   end
 end
