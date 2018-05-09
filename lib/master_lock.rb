@@ -56,6 +56,8 @@ module MasterLock
     # @raise [LockNotAcquiredError] if the lock cannot be acquired before the
     #   timeout
     def synchronize(key, options = {})
+      lock_acquired_start_time = Time.now # used for benchmarking
+
       check_configured
       raise NotStartedError unless @registry
 
@@ -83,15 +85,21 @@ module MasterLock
 
       registration =
         @registry.register(lock, extend_interval)
-      logger.debug("Acquired lock #{key}")
+      logger.debug(lock_id: key, message: 'Acquired lock')
       begin
         yield
       ensure
         @registry.unregister(registration)
+
+        log_info = {
+          lock_id: key,
+          lock_time: (Time.now - lock_acquired_start_time).to_f
+        }
+
         if lock.release
-          logger.debug("Released lock #{key}")
+          logger.debug(log_info.merge(message: "Released lock."))
         else
-          logger.warn("Failed to release lock #{key}")
+          logger.warn(log_info.merge(message: "Failed to release lock."))
         end
       end
     end

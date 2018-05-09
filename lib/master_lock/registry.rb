@@ -73,17 +73,24 @@ module MasterLock
         if !registration.thread.alive?
           registration.released = true
           MasterLock.logger.info(
-            "Releasing lock #{lock_key} after owning thread terminated"
+            lock_id: lock_key,
+            message: 'Releasing lock after owning thread terminated.'
           )
         elsif !registration.released &&
             registration.acquired_at + registration.extend_interval < time
           lock_key = registration.lock.key
           if registration.lock.extend
             registration.acquired_at = time
-            MasterLock.logger.debug("Renewed lease on lock #{lock_key}")
+            MasterLock.logger.debug(
+              lock_id: lock_key,
+              message: 'Renewed lease on lock.'
+            )
           else
             registration.released = true
-            MasterLock.logger.warn("Could not renew lease on lock #{lock_key}")
+            MasterLock.logger.warn(
+              lock_id: lock_key,
+              message: 'Could not renew lease on lock.'
+            )
           end
         end
       end

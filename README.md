@@ -38,6 +38,20 @@ MasterLock.start
 
 See [documentation](http://www.rubydoc.info/gems/master_lock) for advanced usage.
 
+## Example Config
+
+```ruby
+MasterLock.configure do |config|
+  config.redis = $redis
+  config.logger.level = ENV['APP_ENV'] == 'test' ? :info : :debug
+
+  # The log formatter given must be able to accept hashes.
+  config.logger.formatter = proc do |_serverity, _time, _progname, msg|
+    "#{msg.to_json}\n"
+  end
+end
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
