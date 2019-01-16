@@ -109,6 +109,12 @@ module MasterLock
       end
     end
 
+    # Returns true if the registry has been started, otherwise false
+    # @return [Boolean]
+    def started?
+      !@registry.nil?
+    end
+
     # Get the configured logger.
     #
     # @return [Logger]
