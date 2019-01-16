@@ -1,4 +1,4 @@
-# Contributing to assume-role
+# Contributing to MasterLock
 
 ## Code of Conduct
 
