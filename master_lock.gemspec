@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
                        "with an expiration time so if process that holds a lock dies unexpectedly, " \
                        "the lock is released automatically after a certain duration."
   spec.homepage      = "https://github.com/coinbase/master_lock"
-  spec.license       = "MIT"
+  spec.license       = "Apache-2.0"
 
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(/^spec/) }
   spec.require_paths = ["lib"]
