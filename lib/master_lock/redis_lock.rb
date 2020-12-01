@@ -95,7 +95,13 @@ module MasterLock
     end
 
     def redis_key
-      "#{MasterLock.config.key_prefix}:#{key}"
+      # Key hash tags are a way to ensure multiple keys are allocated in the same hash slot.
+      # This allows our redis operations to work with clusters
+      if MasterLock.config.cluster
+        "{#{MasterLock.config.key_prefix}}:#{key}"
+      else
+        "#{MasterLock.config.key_prefix}:#{key}"
+      end
     end
   end
 end

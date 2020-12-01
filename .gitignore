@@ -7,3 +7,7 @@
 /pkg/
 /spec/reports/
 /tmp/
+.idea
+/dump.rdb
+cluster-test/700*/appendonly.aof
+cluster-test/700*/nodes.conf
