@@ -14,7 +14,6 @@ require 'socket'
 # alive, a separate thread will extend the lifetime of the locks so that they
 # do not expire even when the code in the critical section takes a long time to
 # execute.
-# todo: change to class?
 module MasterLock
   class UnconfiguredError < StandardError; end
   class NotStartedError < StandardError; end
