@@ -1,4 +1,5 @@
 require 'master_lock/version'
+require 'master_lock/backend'
 
 require 'logger'
 require 'socket'
@@ -32,10 +33,18 @@ module MasterLock
     :key_prefix,
     :redis,
     :sleep_time,
-    :ttl
+    :ttl,
+    :cluster
   )
 
   class << self
+    def backend
+      @backend ||= Backend.new
+    end
+
+    def backend=(backend)
+      @backend = backend
+    end
     # Obtain a mutex around a critical section of code. Only one thread on any
     # machine can execute the given block at a time. Returns the result of the
     # block.
@@ -55,105 +64,41 @@ module MasterLock
     # @raise [NotStartedError] if called before {#start}
     # @raise [LockNotAcquiredError] if the lock cannot be acquired before the
     #   timeout
-    def synchronize(key, options = {})
-      check_configured
-      raise NotStartedError unless @registry
-
-      ttl = options[:ttl] || config.ttl
-      acquire_timeout = options[:acquire_timeout] || config.acquire_timeout
-      extend_interval = options[:extend_interval] || config.extend_interval
-
-      raise ArgumentError, "extend_interval cannot be negative" if extend_interval < 0
-      raise ArgumentError, "ttl must be greater extend_interval" if ttl <= extend_interval
-
-      if (options.include?(:if) && !options[:if]) ||
-          (options.include?(:unless) && options[:unless])
-        return yield
-      end
-
-      lock = RedisLock.new(
-        redis: config.redis,
-        key: key,
-        ttl: ttl,
-        owner: generate_owner
-      )
-      if !lock.acquire(timeout: acquire_timeout)
-        raise LockNotAcquiredError, key
-      end
-
-      registration =
-        @registry.register(lock, extend_interval)
-      logger.debug("Acquired lock #{key}")
-      begin
-        yield
-      ensure
-        @registry.unregister(registration)
-        if lock.release
-          logger.debug("Released lock #{key}")
-        else
-          logger.warn("Failed to release lock #{key}")
-        end
-      end
+    def synchronize(key, options = {}, &blk)
+      backend.synchronize(key, options, &blk)
     end
 
     # Starts the background thread to manage and extend currently held locks.
     # The thread remains alive for the lifetime of the process. This must be
     # called before any locks may be acquired.
     def start
-      @registry = Registry.new
-      Thread.new do
-        loop do
-          @registry.extend_locks
-          sleep(config.sleep_time)
-        end
-      end
+      backend.start
     end
 
     # Returns true if the registry has been started, otherwise false
     # @return [Boolean]
     def started?
-      !@registry.nil?
+      backend.started?
     end
 
     # Get the configured logger.
     #
     # @return [Logger]
     def logger
-      config.logger
+      backend.logger
     end
 
     # @return [Config] MasterLock configuration settings
     def config
-      if !defined?(@config)
-        @config = Config.new
-        @config.acquire_timeout = DEFAULT_ACQUIRE_TIMEOUT
-        @config.extend_interval = DEFAULT_EXTEND_INTERVAL
-        @config.hostname = Socket.gethostname
-        @config.logger = Logger.new(STDOUT)
-        @config.logger.progname = name
-        @config.key_prefix = DEFAULT_KEY_PREFIX
-        @config.sleep_time = DEFAULT_SLEEP_TIME
-        @config.ttl = DEFAULT_TTL
-      end
-      @config
+      backend.config
     end
 
     # Configure MasterLock using block syntax. Simply yields {#config} to the
     # block.
     #
     # @yield [Config] the configuration
-    def configure
-      yield config
-    end
-
-    private
-
-    def check_configured
-      raise UnconfiguredError, "redis must be configured" unless config.redis
-    end
-
-    def generate_owner
-      "#{config.hostname}:#{Process.pid}:#{Thread.current.object_id}"
+    def configure(&blk)
+      backend.configure(&blk)
     end
   end
 end

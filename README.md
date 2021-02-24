@@ -40,9 +40,27 @@ See [documentation](http://www.rubydoc.info/gems/master_lock) for advanced usage
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bundle install` to install the gem dependencies. 
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+### Testing
+If you do not have Redis set up, run `brew install redis`. This gives you access to `redis-server`.
+
+To set up the redis instance, run `redis-server` in the project level directory. The default config should be located at `/usr/local/etc/redis.conf`.
+
+To set up the redis cluster, copy your redis-server executable to `cluster-test/redis-server`. Open up 6 terminal tabs, and in every tab, start every instance:
+```
+cd cluster-test/7000
+../redis-server ./redis.conf
+```
+Assuming you have at least Redis 5, create your cluster by running the following:
+```
+redis-cli --cluster create 127.0.0.1:7000 127.0.0.1:7001 \
+127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005 \
+--cluster-replicas 1
+```
+
+Then, run `rake spec` to run the tests. 
 
 ## Contributing
 
