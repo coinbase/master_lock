@@ -98,9 +98,9 @@ module MasterLock
       # Key hash tags are a way to ensure multiple keys are allocated in the same hash slot.
       # This allows our redis operations to work with clusters
       if config.cluster
-        "{#{MasterLock.config.key_prefix}}:#{key}"
+        "{#{config.key_prefix}}:#{key}"
       else
-        "#{MasterLock.config.key_prefix}:#{key}"
+        "#{config.key_prefix}:#{key}"
       end
     end
 
