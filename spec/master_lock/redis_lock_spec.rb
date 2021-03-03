@@ -2,45 +2,58 @@ require 'spec_helper'
 
 RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
   let(:lock1) do
-    described_class.new(redis: redis, key: "key", owner: "owner1", ttl: 0.1)
+    described_class.new(redis: redis, key: "key", owner: "owner1", ttl: 0.1, cluster: false)
   end
   let(:lock2) do
-    described_class.new(redis: redis, key: "key", owner: "owner2", ttl: 0.1)
+    described_class.new(redis: redis, key: "key", owner: "owner2", ttl: 0.1, cluster: false)
   end
   let(:lock3) do
-    described_class.new(redis: cluster, key: "key", owner: "owner3", ttl: 0.1)
+    described_class.new(redis: cluster, key: "key", owner: "owner3", ttl: 0.1, cluster: true)
   end
   let(:lock4) do
-    described_class.new(redis: cluster, key: "key", owner: "owner4", ttl: 0.1)
+    described_class.new(redis: cluster, key: "key", owner: "owner4", ttl: 0.1, cluster: true)
   end
 
   before do
-    MasterLock.config.cluster = false
+    clean_redis
+    clean_cluster
+  end
+
+  describe "#redis basic tests" do
+    it "starts empty and then works" do
+      expect(redis.mget('{key}1', '{key}2')).to eq([nil, nil])
+      expect {redis.set('{key}1', 'a')}.to_not raise_error
+      expect {redis.set('{key}2', 'b')}.to_not raise_error
+      expect {redis.set('{key}1', 'c')}.to_not raise_error
+      expect(redis.mget('{key}1', '{key}2')).to eq(['c', 'b'])
+    end
   end
 
   describe "#cluster basic tests" do
-    it "fails to get the keys" do
-      expect{ cluster.mget('key1', 'key2') }.to raise_error(Redis::CommandError)
-    end
-
-    it "successfully gets the keys" do
-      expect { cluster.mget('{key}1','{key}2')}.to_not raise_error
+    it "starts empty and then works" do
+      expect(cluster.mget('{key}1', '{key}2')).to eq([nil, nil])
+      expect {cluster.set('{key}1', 'a')}.to_not raise_error
+      expect {cluster.set('{key}2', 'b')}.to_not raise_error
+      expect {cluster.set('{key}1', 'c')}.to_not raise_error
+      expect(cluster.mget('{key}1', '{key}2')).to eq(['c', 'b'])
     end
   end
 
   describe "#acquire" do
     it "returns true when lock can be acquired" do
       expect(lock1.acquire(timeout: 0)).to eq(true)
+      expect(redis.get('masterlock:key')).to_not be_nil
+      expect(redis.get('{masterlock}:key')).to be_nil
       # Cluster test
-      MasterLock.config.cluster = true
       expect(lock3.acquire(timeout: 0)).to eq(true)
+      expect(cluster.get('masterlock:key')).to be_nil
+      expect(cluster.get('{masterlock}:key')).to_not be_nil
     end
 
     it "returns false when lock can not be acquired" do
       expect(lock1.acquire(timeout: 0)).to eq(true)
       expect(lock2.acquire(timeout: 0)).to eq(false)
       # Cluster test
-      MasterLock.config.cluster = true
       expect(lock3.acquire(timeout: 0)).to eq(true)
       expect(lock4.acquire(timeout: 0)).to eq(false)
     end
@@ -49,7 +62,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
       expect(lock1.acquire(timeout: 0)).to eq(true)
       expect(lock1.acquire(timeout: 0)).to eq(false)
       # Cluster test
-      MasterLock.config.cluster = true
       expect(lock3.acquire(timeout: 0)).to eq(true)
       expect(lock3.acquire(timeout: 0)).to eq(false)
     end
@@ -58,7 +70,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
       expect(lock1.acquire(timeout: 0)).to eq(true)
       expect(lock2.acquire(timeout: 1)).to eq(true)
       # Cluster test
-      MasterLock.config.cluster = true
       expect(lock3.acquire(timeout: 0)).to eq(true)
       expect(lock4.acquire(timeout: 1)).to eq(true)
     end
@@ -69,7 +80,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
       lock1.acquire(timeout: 0)
       expect(lock1.extend).to eq(true)
       # Cluster test
-      MasterLock.config.cluster = true
       lock3.acquire(timeout: 0)
       expect(lock3.extend).to eq(true)
     end
@@ -78,7 +88,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
       lock2.acquire(timeout: 0)
       expect(lock1.extend).to eq(false)
       # Cluster test
-      MasterLock.config.cluster = true
       lock4.acquire(timeout: 0)
       expect(lock3.extend).to eq(false)
     end
@@ -86,7 +95,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
     it "returns false when lock is not held" do
       expect(lock1.extend).to eq(false)
       # Cluster test
-      MasterLock.config.cluster = true
       expect(lock3.extend).to eq(false)
     end
 
@@ -99,7 +107,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
       sleep 0.2
       expect(lock1.extend).to eq(false)
       # Cluster test
-      MasterLock.config.cluster = true
       lock3.acquire(timeout: 0)
       3.times do
         sleep 0.05
@@ -113,26 +120,35 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
   describe "#release" do
     it "returns true when lock is held by owner" do
       lock1.acquire(timeout: 0)
+      expect(redis.get('masterlock:key')).to_not be_nil
+      expect(redis.get('{masterlock}:key')).to be_nil
       expect(lock1.release).to eq(true)
+      expect(redis.get('masterlock:key')).to be_nil
+      expect(redis.get('{masterlock}:key')).to be_nil
       # Cluster test
-      MasterLock.config.cluster = true
       lock3.acquire(timeout: 0)
+      expect(cluster.get('masterlock:key')).to be_nil
+      expect(cluster.get('{masterlock}:key')).to_not be_nil
       expect(lock3.release).to eq(true)
+      expect(cluster.get('masterlock:key')).to be_nil
+      expect(cluster.get('{masterlock}:key')).to be_nil
     end
 
     it "returns false when lock is held by another owner" do
       lock2.acquire(timeout: 0)
       expect(lock1.release).to eq(false)
+      expect(redis.get('masterlock:key')).to_not be_nil
+      expect(redis.get('{masterlock}:key')).to be_nil
       # Cluster test
-      MasterLock.config.cluster = true
       lock4.acquire(timeout: 0)
       expect(lock3.release).to eq(false)
+      expect(cluster.get('masterlock:key')).to be_nil
+      expect(cluster.get('{masterlock}:key')).to_not be_nil
     end
 
     it "returns false when lock is not held" do
       expect(lock1.release).to eq(false)
       # Cluster test
-      MasterLock.config.cluster = true
       expect(lock3.release).to eq(false)
     end
 
@@ -142,7 +158,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
       expect(lock1.release).to eq(false)
       expect(lock2.acquire(timeout: 0)).to eq(true)
       # Cluster test
-      MasterLock.config.cluster = true
       lock3.acquire(timeout: 0)
       expect(lock3.release).to eq(true)
       expect(lock3.release).to eq(false)

@@ -40,6 +40,7 @@ module MasterLock
           redis: config.redis,
           key: key,
           ttl: ttl,
+          cluster: config.cluster,
           owner: generate_owner
       )
       if !lock.acquire(timeout: acquire_timeout)

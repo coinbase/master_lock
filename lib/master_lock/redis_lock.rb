@@ -22,17 +22,22 @@ module MasterLock
     # @return [Fixnum] the lifetime of the lock in seconds
     attr_reader :ttl
 
+    # @return [Boolean] whether this Redis is clustered or not
+    attr_reader :cluster
+
     def initialize(
       redis:,
       key:,
       owner:,
       ttl:,
+      cluster:,
       sleep_interval: DEFAULT_SLEEP_INTERVAL
     )
       @redis = redis
       @key = key
       @owner = owner
       @ttl = ttl
+      @cluster = cluster
       @sleep_interval = sleep_interval
     end
 
@@ -97,7 +102,7 @@ module MasterLock
     def redis_key
       # Key hash tags are a way to ensure multiple keys are allocated in the same hash slot.
       # This allows our redis operations to work with clusters
-      if MasterLock.config.cluster
+      if cluster
         "{#{MasterLock.config.key_prefix}}:#{key}"
       else
         "#{MasterLock.config.key_prefix}:#{key}"
