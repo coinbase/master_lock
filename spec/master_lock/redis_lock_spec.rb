@@ -1,17 +1,34 @@
 require 'spec_helper'
 
 RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
+  let(:redis_backend) do
+    b = MasterLock::Backend.new
+    b.configure do |config|
+      config.redis = redis
+      config.cluster = false
+    end
+    b
+  end
+  let(:cluster_backend) do
+    b = MasterLock::Backend.new
+    b.configure do |config|
+      config.redis = cluster
+      config.cluster = true
+    end
+    b
+  end
+
   let(:lock1) do
-    described_class.new(redis: redis, key: "key", owner: "owner1", ttl: 0.1, cluster: false)
+    described_class.new(config: redis_backend.config, key: "key", owner: "owner1", ttl: 0.1)
   end
   let(:lock2) do
-    described_class.new(redis: redis, key: "key", owner: "owner2", ttl: 0.1, cluster: false)
+    described_class.new(config: redis_backend.config, key: "key", owner: "owner2", ttl: 0.1)
   end
   let(:lock3) do
-    described_class.new(redis: cluster, key: "key", owner: "owner3", ttl: 0.1, cluster: true)
+    described_class.new(config: cluster_backend.config, key: "key", owner: "owner3", ttl: 0.1)
   end
   let(:lock4) do
-    described_class.new(redis: cluster, key: "key", owner: "owner4", ttl: 0.1, cluster: true)
+    described_class.new(config: cluster_backend.config, key: "key", owner: "owner4", ttl: 0.1)
   end
 
   before do

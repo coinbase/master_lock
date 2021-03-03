@@ -37,10 +37,9 @@ module MasterLock
       end
 
       lock = RedisLock.new(
-          redis: config.redis,
+          config: config,
           key: key,
           ttl: ttl,
-          cluster: config.cluster,
           owner: generate_owner
       )
       if !lock.acquire(timeout: acquire_timeout)
