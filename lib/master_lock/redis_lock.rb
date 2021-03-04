@@ -10,8 +10,8 @@ module MasterLock
   class RedisLock
     DEFAULT_SLEEP_INTERVAL = 0.1
 
-    # @return [Redis] the Redis connection used to manage lock
-    attr_reader :redis
+    # @return [Config] backend's config which includes redis connection used to manage lock
+    attr_reader :config
 
     # @return [String] the unique identifier for the locked resource
     attr_reader :key
@@ -23,13 +23,13 @@ module MasterLock
     attr_reader :ttl
 
     def initialize(
-      redis:,
+      config:,
       key:,
       owner:,
       ttl:,
       sleep_interval: DEFAULT_SLEEP_INTERVAL
     )
-      @redis = redis
+      @config = config
       @key = key
       @owner = owner
       @ttl = ttl
@@ -95,13 +95,11 @@ module MasterLock
     end
 
     def redis_key
-      # Key hash tags are a way to ensure multiple keys are allocated in the same hash slot.
-      # This allows our redis operations to work with clusters
-      if MasterLock.config.cluster
-        "{#{MasterLock.config.key_prefix}}:#{key}"
-      else
-        "#{MasterLock.config.key_prefix}:#{key}"
-      end
+      "#{config.key_prefix}:#{key}"
+    end
+
+    def redis
+      config.redis
     end
   end
 end

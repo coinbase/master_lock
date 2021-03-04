@@ -37,7 +37,7 @@ module MasterLock
       end
 
       lock = RedisLock.new(
-          redis: config.redis,
+          config: config,
           key: key,
           ttl: ttl,
           owner: generate_owner

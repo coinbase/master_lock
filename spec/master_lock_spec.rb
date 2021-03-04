@@ -3,7 +3,7 @@ require 'spec_helper'
 RSpec.describe MasterLock, redis: true do
   describe '.started?' do
     before do
-      MasterLock.instance_eval('@registry = nil')
+      MasterLock.backend.instance_eval('@registry = nil')
     end
 
     subject { described_class.started? }
