@@ -33,8 +33,7 @@ module MasterLock
     :key_prefix,
     :redis,
     :sleep_time,
-    :ttl,
-    :cluster
+    :ttl
   )
 
   class << self

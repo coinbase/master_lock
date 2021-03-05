@@ -99,7 +99,6 @@ module MasterLock
         @config.key_prefix = DEFAULT_KEY_PREFIX
         @config.sleep_time = DEFAULT_SLEEP_TIME
         @config.ttl = DEFAULT_TTL
-        @config.cluster = false
       end
       @config
     end

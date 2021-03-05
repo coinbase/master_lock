@@ -5,7 +5,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
     b = MasterLock::Backend.new
     b.configure do |config|
       config.redis = redis
-      config.cluster = false
     end
     b
   end
@@ -13,7 +12,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
     b = MasterLock::Backend.new
     b.configure do |config|
       config.redis = cluster
-      config.cluster = true
     end
     b
   end
@@ -29,11 +27,6 @@ RSpec.describe MasterLock::RedisLock, redis: true, cluster: true do
   end
   let(:lock4) do
     described_class.new(config: cluster_backend.config, key: "key", owner: "owner4", ttl: 0.1)
-  end
-
-  before do
-    clean_redis
-    clean_cluster
   end
 
   describe "#redis basic tests" do
