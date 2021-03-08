@@ -62,7 +62,7 @@ RSpec.configure do |config|
   # as the one that triggered the failure.
   Kernel.srand config.seed
 
-  config.include RedisTest, redis: true, cluster: true
+  config.include RedisTest
 
   config.before(:each, redis: true) do
     clean_redis
@@ -75,5 +75,4 @@ end
 
 MasterLock.configure do |config|
   config.logger.level = :info
-  config.cluster = false
 end
