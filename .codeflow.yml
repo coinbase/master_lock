@@ -1,0 +1,9 @@
+---
+build:
+  engines:
+    - BaldurGem
+secure:
+  required_reviews: 1
+  requires_mfa: true
+  upstream_repository: coinbase/master_lock
+
